@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Doc → French (Canada) Translator v1.3 — © 2025</title>
+  <style>
+    :root { --text:#e9eefc; --muted:#a9b5d6; --ok:#47d18c; --bad:#ff6b6b; }
+    body{ margin:0; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; background:#0b1220; color:var(--text); }
+    header{ padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.08); background:rgba(18,26,43,.85); position:sticky; top:0; backdrop-filter: blur(8px);}
+    main{ max-width:1100px; margin:16px auto; padding:0 12px 20px; }
+    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .card{ background:rgba(18,26,43,.85); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:12px; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    label{ font-size:12px; color:var(--muted); }
+    textarea,input,select{ width:100%; background:#0b1220; color:var(--text); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:10px; outline:none; }
+    textarea{ min-height:280px; resize:vertical; }
+    button{ background:#0b1220; color:var(--text); border:1px solid rgba(255,255,255,.14); padding:10px 12px; border-radius:12px; cursor:pointer; font-weight:650; }
+    button.primary{ border-color: rgba(74,163,255,.6); box-shadow: 0 0 0 2px rgba(74,163,255,.12) inset; }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    .pill{ padding:6px 10px; border-radius:999px; font-size:12px; background:rgba(255,255,255,.06); color:var(--muted); border:1px solid rgba(255,255,255,.08); }
+    .pill.ok{ color:var(--ok); border-color: rgba(71,209,140,.35); }
+    .pill.bad{ color:var(--bad); border-color: rgba(255,107,107,.35); }
+    .small{ font-size:12px; color:var(--muted); line-height:1.35; }
+    .spinner{ display:none; width:18px; height:18px; border:3px solid rgba(255,255,255,.2); border-top-color: rgba(74,163,255,.9); border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin{ to{ transform:rotate(360deg);} }
+    @media (max-width:950px){ .grid{ grid-template-columns:1fr; } textarea{ min-height:240px; } }
+    code{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+
+  <!-- DOCX extractor -->
+  <script src="./mammoth.browser.min.js"></script>
+</head>
+
+<body>
+<header>
+  <div style="font-size:18px;font-weight:800;">Document → French (Canada) Translator <span style="opacity:.8;">v1.3</span></div>
+  <div class="small">
+    Default translator: <b>MyMemory (FREE)</b>. PDF.js uses <b>pdf.mjs</b> + <b>pdf.worker.mjs</b>. Scanned PDFs need OCR.
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+
+    <section class="card">
+      <h3 style="margin:0 0 10px 0;">1) Load a document</h3>
+
+      <div class="row" style="margin-bottom:10px;">
+        <input id="file" type="file" accept=".txt,.docx,.pdf" />
+        <button id="btnClear">Clear</button>
+      </div>
+
+      <div class="row" style="margin-bottom:10px; justify-content:space-between;">
+        <div class="row">
+          <span class="pill" id="fileTypePill">No file</span>
+          <span class="pill" id="libPill">Libs: checking…</span>
+        </div>
+        <div class="row">
+          <div class="spinner" id="spinLoad"></div>
+          <span class="small" id="loadMsg"></span>
+        </div>
+      </div>
+
+      <label>Extracted text (source)</label>
+      <textarea id="src" placeholder="Your extracted text will appear here…"></textarea>
+
+      <div class="row" style="margin-top:10px;">
+        <button id="btnCopySrc">Copy source</button>
+        <button id="btnDownloadSrc">Download source .txt</button>
+      </div>
+
+      <div class="small" style="margin-top:10px;">
+        <b>Required files beside index.html:</b>
+        <ul>
+          <li><code>mammoth.browser.min.js</code></li>
+          <li><code>pdf.mjs</code> + <code>pdf.worker.mjs</code></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 style="margin:0 0 10px 0;">2) Translate</h3>
+
+      <div class="row" style="gap:12px; margin-bottom:10px;">
+        <div style="flex:1; min-width:240px;">
+          <label>Translator service</label>
+          <select id="service">
+            <option value="mymemory" selected>MyMemory (FREE) — translated.net</option>
+            <option value="libretranslate">LibreTranslate (needs an endpoint; many require API key)</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:240px;">
+          <label>Target language</label>
+          <select id="target">
+            <option value="fr-CA" selected>French (Canada) — fr-CA</option>
+            <option value="fr">French — fr</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="mmBox" class="row" style="gap:12px; margin-bottom:10px;">
+        <div style="flex:1; min-width:260px;">
+          <label>MyMemory “contact email” (optional but increases free daily limit)</label>
+          <input id="mmEmail" type="text" placeholder="you@example.com (optional)" />
+          <div class="small">MyMemory free tier allows more characters/day if you include an email parameter.</div>
+        </div>
+        <div style="flex:1; min-width:240px;">
+          <label>Chunk size (characters)</label>
+          <select id="chunkSize">
+            <option value="800">800 (safest)</option>
+            <option value="1500" selected>1500</option>
+            <option value="2500">2500 (riskier)</option>
+          </select>
+          <div class="small">MyMemory is best with smaller chunks.</div>
+        </div>
+      </div>
+
+      <div id="ltBox" style="display:none;">
+        <div class="row" style="gap:12px; margin-bottom:10px;">
+          <div style="flex:1; min-width:260px;">
+            <label>LibreTranslate endpoint</label>
+            <input id="ltEndpoint" type="text" value="https://libretranslate.com/translate" />
+            <div class="small">Many public endpoints require an API key now (like libretranslate.com).</div>
+          </div>
+          <div style="flex:1; min-width:240px;">
+            <label>LibreTranslate API key (optional)</label>
+            <input id="ltKey" type="password" placeholder="API key (if required)" />
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-bottom:10px;">
+        <button class="primary" id="btnTranslate">Translate</button>
+        <button id="btnStop">Stop</button>
+        <span class="pill" id="apiPill">Service: not run</span>
+        <div class="spinner" id="spinTranslate"></div>
+        <span class="small" id="txMsg"></span>
+      </div>
+
+      <label>Translated text</label>
+      <textarea id="out" placeholder="Translated French (Canada) text appears here…"></textarea>
+
+      <div class="row" style="margin-top:10px;">
+        <button id="btnCopyOut">Copy translation</button>
+        <button id="btnDownloadOut">Download translation .txt</button>
+      </div>
+
+      <div class="small" style="margin-top:10px;">
+        If you see “0 chars” on a PDF, it’s likely a scan (no selectable text). Add OCR if you need that.
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  let stopFlag = false;
+
+  function setPill(el, text, state){
+    el.textContent = text;
+    el.classList.remove('ok','bad');
+    if(state === 'ok') el.classList.add('ok');
+    if(state === 'bad') el.classList.add('bad');
+  }
+  function normalizeNewlines(s){ return (s || '').replace(/\r\n/g, '\n'); }
+  function splitIntoChunks(text, size){
+    const out = [];
+    for (let i=0; i<text.length; i+=size) out.push(text.slice(i, i+size));
+    return out;
+  }
+  async function copyToClipboard(text){ await navigator.clipboard.writeText(text); }
+  function downloadText(filename, text){
+    const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  }
+
+  function refreshServiceUI(){
+    const svc = $('service').value;
+    $('mmBox').style.display = (svc === 'mymemory') ? '' : 'none';
+    $('ltBox').style.display = (svc === 'libretranslate') ? '' : 'none';
+  }
+
+  function checkLibs(){
+    const hasMammoth = typeof window.mammoth !== 'undefined';
+    const hasPDFJS = typeof window.pdfjsLib !== 'undefined';
+    setPill($('libPill'), `Libs: DOCX: ${hasMammoth ? 'OK' : 'missing'} · PDF: ${hasPDFJS ? 'OK' : 'missing'}`, (hasMammoth || hasPDFJS) ? 'ok' : 'bad');
+  }
+
+  async function loadTXT(file){ return normalizeNewlines(await file.text()); }
+
+  async function loadDOCX(file){
+    if (typeof window.mammoth === 'undefined') throw new Error('DOCX support missing: put mammoth.browser.min.js beside index.html');
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await window.mammoth.extractRawText({ arrayBuffer });
+    return normalizeNewlines(result.value || '');
+  }
+
+  async function loadPDF(file){
+    if (typeof window.pdfjsLib === 'undefined') throw new Error('PDF support missing: pdf.mjs failed to load');
+    const data = new Uint8Array(await file.arrayBuffer());
+    const loadingTask = window.pdfjsLib.getDocument({ data });
+    const pdf = await loadingTask.promise;
+
+    const parts = [];
+    for (let p = 1; p <= pdf.numPages; p++){
+      $('loadMsg').textContent = `Reading PDF page ${p}/${pdf.numPages}…`;
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+
+      let line = '';
+      for (const item of content.items){
+        const s = item.str || '';
+        line += s;
+        if (item.hasEOL) { parts.push(line.trimEnd()); line = ''; }
+        else { line += ' '; }
+      }
+      if (line.trim()) parts.push(line.trim());
+      parts.push('');
+    }
+    return normalizeNewlines(parts.join('\n'));
+  }
+
+  // ---------- FREE Translator: MyMemory ----------
+  async function translateChunkMyMemory(chunk, target, email){
+    // MyMemory needs explicit source/target; we assume English source for best results.
+    // If your source text is French already, set source to fr.
+    const source = 'en';
+    const tgt = (target || 'fr-CA');
+    const langpair = `${source}|${tgt}`;
+
+    const url = new URL('https://api.mymemory.translated.net/get');
+    url.searchParams.set('q', chunk);
+    url.searchParams.set('langpair', langpair);
+    if (email && email.trim()) url.searchParams.set('de', email.trim());
+
+    const res = await fetch(url.toString(), { method:'GET' }).catch(err => {
+      throw new Error(`Network/CORS error calling MyMemory: ${err.message || err}`);
+    });
+
+    if (!res.ok){
+      const t = await res.text().catch(()=> '');
+      throw new Error(`MyMemory error: ${res.status} ${res.statusText}${t ? ' — ' + t.slice(0,250) : ''}`);
+    }
+
+    const json = await res.json();
+    const translated = json?.responseData?.translatedText;
+    if (typeof translated !== 'string') throw new Error('MyMemory: unexpected response (no translatedText).');
+    return translated;
+  }
+
+  // ---------- Optional: LibreTranslate (only if you have a free endpoint) ----------
+  async function translateChunkLibreTranslate(endpoint, apiKey, target, chunk){
+    const payload = { q: chunk, source: "auto", target, format: "text" };
+    if (apiKey && apiKey.trim()) payload.api_key = apiKey.trim();
+
+    const res = await fetch(endpoint, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    }).catch(err => {
+      throw new Error(`Network/CORS error calling LibreTranslate: ${err.message || err}`);
+    });
+
+    if (!res.ok){
+      const t = await res.text().catch(()=> '');
+      throw new Error(`LibreTranslate error: ${res.status} ${res.statusText}${t ? ' — ' + t.slice(0,250) : ''}`);
+    }
+
+    const json = await res.json();
+    if (!json || typeof json.translatedText !== 'string') throw new Error('LibreTranslate: unexpected response.');
+    return json.translatedText;
+  }
+
+  async function translateAll(){
+    const text = $('src').value.trim();
+    if (!text){ $('txMsg').textContent = 'Nothing to translate.'; return; }
+
+    const svc = $('service').value;
+    const target = $('target').value;
+    const chunkSize = parseInt($('chunkSize').value, 10);
+
+    stopFlag = false;
+    $('spinTranslate').style.display = 'inline-block';
+    setPill($('apiPill'), `Service: running (${svc})…`, 'ok');
+    $('txMsg').textContent = '';
+
+    try {
+      const chunks = splitIntoChunks(text, chunkSize);
+      const out = [];
+
+      for (let i=0; i<chunks.length; i++){
+        if (stopFlag) break;
+        $('txMsg').textContent = `Translating chunk ${i+1} of ${chunks.length}…`;
+
+        let translated;
+        if (svc === 'mymemory'){
+          translated = await translateChunkMyMemory(chunks[i], target, $('mmEmail').value);
+        } else {
+          translated = await translateChunkLibreTranslate($('ltEndpoint').value.trim(), $('ltKey').value, target, chunks[i]);
+        }
+
+        out.push(translated);
+        await sleep(120);
+      }
+
+      $('out').value = normalizeNewlines(out.join('\n\n'));
+
+      if (stopFlag){
+        $('txMsg').textContent = 'Stopped.';
+        setPill($('apiPill'), 'Service: stopped', 'bad');
+      } else {
+        $('txMsg').textContent = 'Done.';
+        setPill($('apiPill'), 'Service: OK', 'ok');
+      }
+    } catch (e){
+      console.error(e);
+      $('txMsg').textContent = e.message || String(e);
+      setPill($('apiPill'), 'Service: error', 'bad');
+    } finally {
+      $('spinTranslate').style.display = 'none';
+    }
+  }
+
+  $('service').addEventListener('change', refreshServiceUI);
+  refreshServiceUI();
+
+  $('btnTranslate').addEventListener('click', translateAll);
+  $('btnStop').addEventListener('click', () => { stopFlag = true; });
+
+  $('btnClear').addEventListener('click', () => {
+    $('file').value = '';
+    $('src').value = '';
+    $('out').value = '';
+    $('loadMsg').textContent = '';
+    $('txMsg').textContent = '';
+    setPill($('fileTypePill'), 'No file', '');
+  });
+
+  $('btnCopySrc').addEventListener('click', async () => {
+    try { await copyToClipboard($('src').value); $('loadMsg').textContent = 'Source copied.'; } catch { $('loadMsg').textContent = 'Copy failed.'; }
+  });
+  $('btnCopyOut').addEventListener('click', async () => {
+    try { await copyToClipboard($('out').value); $('txMsg').textContent = 'Translation copied.'; } catch { $('txMsg').textContent = 'Copy failed.'; }
+  });
+
+  $('btnDownloadSrc').addEventListener('click', () => downloadText('source.txt', $('src').value || ''));
+  $('btnDownloadOut').addEventListener('click', () => downloadText('translation_fr-CA.txt', $('out').value || ''));
+
+  $('file').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    $('spinLoad').style.display = 'inline-block';
+    $('loadMsg').textContent = 'Loading…';
+    $('src').value = '';
+    $('out').value = '';
+
+    const name = file.name.toLowerCase();
+    try {
+      let text = '';
+      if (name.endsWith('.txt')){
+        setPill($('fileTypePill'), 'TXT', 'ok');
+        text = await loadTXT(file);
+      } else if (name.endsWith('.docx')){
+        setPill($('fileTypePill'), 'DOCX', 'ok');
+        text = await loadDOCX(file);
+      } else if (name.endsWith('.pdf')){
+        setPill($('fileTypePill'), 'PDF', 'ok');
+        text = await loadPDF(file);
+      } else {
+        throw new Error('Unsupported file type. Use .txt, .docx, or .pdf.');
+      }
+
+      $('src').value = text;
+
+      const n = (text || '').trim().length;
+      if (name.endsWith('.pdf') && n === 0){
+        $('loadMsg').textContent = `Loaded ${file.name} (0 chars). This PDF likely has no text layer (scanned). OCR is needed.`;
+      } else {
+        $('loadMsg').textContent = `Loaded ${file.name} (${(text || '').length.toLocaleString()} chars).`;
+      }
+    } catch (err){
+      console.error(err);
+      $('loadMsg').textContent = err.message || String(err);
+      setPill($('fileTypePill'), 'Load error', 'bad');
+    } finally {
+      $('spinLoad').style.display = 'none';
+    }
+  });
+
+  checkLibs();
+</script>
+
+<!-- PDF.js module loader for pdf.mjs / pdf.worker.mjs -->
+<script type="module">
+  try {
+    const mod = await import('./pdf.mjs');
+    const pdfjsLib = mod?.default || mod;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs';
+    window.pdfjsLib = pdfjsLib;
+  } catch (e) {
+    console.error('PDF module load failed:', e);
+  } finally {
+    const hasMammoth = typeof window.mammoth !== 'undefined';
+    const hasPDFJS = typeof window.pdfjsLib !== 'undefined';
+    const pill = document.getElementById('libPill');
+    pill.textContent = `Libs: DOCX: ${hasMammoth ? 'OK' : 'missing'} · PDF: ${hasPDFJS ? 'OK' : 'missing'}`;
+    pill.classList.remove('ok','bad');
+    pill.classList.add((hasMammoth || hasPDFJS) ? 'ok' : 'bad');
+  }
+</script>
+
+</body>
+</html>
